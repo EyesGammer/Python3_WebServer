@@ -4,7 +4,7 @@ import socket, sys, os, os.path, threading, re, functions, settings
 from os import path
 
 if __name__ == "__main__":
-    global show, errors, predefined, files, functions_post
+    global show, errors, predefined, files, functions_post, functions_get
     errors = settings.errors
     predefined = settings.predefined
     files = settings.files
@@ -28,7 +28,8 @@ class client_handle(threading.Thread):
         method, path, get_datas, post_datas = handle_packet(packet)
         returned = get_file(path)
         to_send = processing(returned)
-        to_send = handle_method(method, path.split("/")[-1], get_datas, post_datas, to_send)
+        path = path.split("/")[-1] if path.split("/")[-1] != "" else "index.html"
+        to_send = handle_method(method, path, get_datas, post_datas, to_send)
         self.connexion.sendall(to_send.encode("utf8"))
         self.connexion.close()
 
