@@ -26,9 +26,11 @@ class client_handle(threading.Thread):
     def run(self):
         packet = self.connexion.recv(2048)
         method, path, get_datas, post_datas = handle_packet(packet)
-        returned = get_file(path)
+        tmp_path = path.split("/")[-1] if path != "/" else "index"
+        file_path = predefined.get(tmp_path)
+        returned = get_file(file_path, path.split("/")[1:])
         to_send = processing(returned)
-        path = path.split("/")[-1] if path.split("/")[-1] != "" else "index.html"
+        path = file_path.split("/")[-1] if type(file_path) != type(None) else ""
         to_send = handle_method(method, path, get_datas, post_datas, to_send)
         self.connexion.sendall(to_send.encode("utf8"))
         self.connexion.close()
@@ -55,23 +57,22 @@ def processing(returned):
         content = dynamics_pages(file_path, {"path": files_list[-1], "content": content_list})
     return content
 
-def get_file(path_file):
-    path_list = path_file.split("/")
-    if "." in path_list[-1] and path_list[-1].count(".") == 1:
-        if path.exists(path_file[1:]):
-            return_file = path_file[1:]
+def get_file(path_file, path_base):
+    if type(path_file) != type(None):
+        if path.exists(path_file):
+            return_file = path_file
         else:
             return_file = errors.get(404)
-    elif len(path_list) == 2 and path_list[0] == '' and path_list[1] == '':
-        return_file = predefined.get("index")
-    else:
+    elif "list-dir" in path_base:
         try:
-            directory_content = os.listdir(path_file[1:])
+            directory_content = os.listdir(path_base[-1])
             directory_content.append(path_file)
-            return_file = predefined.get("list-dir")
+            return_file = "list-dir"
             return return_file, directory_content
         except FileNotFoundError:
             return_file = errors.get(404)
+    else:
+        return_file = errors.get(404)
     return return_file
 
 def method_identifier(packet):
@@ -89,11 +90,14 @@ def get_post_datas(packet):
 
 def handle_method(method, path, get_datas, post_datas, returned):
     if method == "POST" and post_datas != "":
-        returned = functions_post.get(path)(post_datas, returned)
+        if len(functions_post) != 0:
+            returned = functions_post.get(path)(post_datas, returned)
         if get_datas != "":
-            returned = functions_get.get(path)(get_datas, returned)
+            if len(functions_get) != 0:
+                returned = functions_get.get(path)(get_datas, returned)
     if method == "GET" and get_datas != "":
-        returned = functions_get.get(path)(get_datas, returned)
+        if len(functions_get) != 0:
+            returned = functions_get.get(path)(get_datas, returned)
     return returned
 
 def handle_packet(packet):
